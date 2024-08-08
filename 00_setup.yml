@@ -1,0 +1,73 @@
+---
+- hosts: all
+  handlers:
+  - name: restart services
+
+  tasks:
+  - name: Create KNI Group
+    ansible.builtin.group:
+      name: kni
+      state: present
+
+  - name: Create KNI User
+    ansible.builtin.user:
+      name: kni
+      group: kni
+      state: present
+      generate_ssh_key: yes
+      ssh_key_bits: 2048
+      ssh_key_file: .ssh/id_rsa_kni
+
+  - name: Sudoers
+    ansible.builtin.copy:
+      content: |
+        kni ALL=(root) NOPASSWD:ALL
+      dest: /etc/sudoers.d/kni
+      owner: root
+      group: root
+      mode: '0440'
+      # state: file
+
+# $ sudo subscription-manager register --username=<user> --password=<pass>
+# $ sudo subscription-manager attach --auto
+# $ sudo subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms --enable=rhel-8-for-x86_64-baseos-rpms
+
+  - name: Packages
+    ansible.builtin.dnf:
+      name:
+      - libvirt
+      - qemu-kvm
+      # - mkisofs
+      - python3-devel
+      - jq
+      - ipmitool
+      state: present
+
+  - name: Add 'libvirt' Group to 'KNI' User
+    ansible.builtin.user:
+      name: kni
+      groups: libvirt
+      append: yes
+      state: present
+
+  - name: start firewalld service
+    ansible.builtin.systemd:
+      name: firewalld
+      state: started
+
+  - name: add httpd
+    ansible.posix.firewalld:
+      zone: public
+      service: http
+      permanent: yes
+      state: enabled
+
+  - name: start libvirtd service
+    ansible.builtin.systemd:
+      name: libvirtd.service
+      state: started
+      enabled: yes
+
+# $ sudo virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
+# $ sudo virsh pool-start default
+# $ sudo virsh pool-autostart default

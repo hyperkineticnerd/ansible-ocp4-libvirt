@@ -1,0 +1,53 @@
+---
+- hosts: all
+  vars:
+    PUB_CONN: HyperBlue
+  tasks:
+  - name: Configure the baremetal network (part 1.1)
+    ansible.builtin.command:
+      cmd:
+        nmcli con down {{ PUB_CONN | quote }}
+    when: 
+    - false
+
+  - name: Configure the baremetal network (part 1.2)
+    ansible.builtin.command:
+      cmd:
+        nmcli con delete {{ PUB_CONN | quote }}
+    when: 
+    - false
+
+  - name: Configure the baremetal network (part 2.1)
+    ansible.builtin.command:
+      cmd:
+        nmcli con down \"System {{ PUB_CONN }}\"
+    when: 
+    - ansible_facts['distribution'] == "RedHat"
+    - false
+
+  - name: Configure the baremetal network (part 2.2)
+    ansible.builtin.command:
+      cmd:
+        nmcli con delete \"System {{ PUB_CONN }}\"
+    when: 
+    - ansible_facts['distribution'] == "RedHat"
+    - false
+
+  - name: Configure the baremetal network (part 3)
+    ansible.builtin.command:
+      cmd:
+        nmcli connection add ifname baremetal type bridge con-name baremetal
+    when:
+    - false
+
+  - name: Configure the baremetal network (part 4)
+    ansible.builtin.command:
+      cmd:
+        nmcli con add type bridge-slave ifname {{ PUB_CONN }} master baremetal
+    when:
+    - false
+
+  # - name: Configure the baremetal network (part 6)
+  #   ansible.builtin.command:
+  #     cmd:
+  #       pkill dhclient; dhclient baremetal
